@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Maruthu's Travelers Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lobster&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-image: url('https://images.unsplash.com/photo-1506744038136-46273834b3fb');
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      font-family: 'Poppins', sans-serif;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 50px;
+      font-family: 'Lobster', cursive;
+      color: #00cc66;
+      text-shadow: 4px 4px 12px rgba(0, 0, 0, 0.8);
+      margin-top: 40px;
+      margin-bottom: 60px;
+      text-align: center;
+    }
+
+    .dropdown-container {
+      display: flex;
+      justify-content: center;
+      gap: 60px;
+      flex-wrap: wrap;
+      margin-bottom: 30px;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    .dropdown-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      min-width: 300px;
+    }
+
+    label {
+      font-size: 22px;
+      font-weight: 600;
+      text-shadow: 1px 1px 3px black;
+      margin-bottom: 10px;
+    }
+
+    select {
+      padding: 14px;
+      font-size: 18px;
+      width: 100%;
+      border-radius: 8px;
+      border: none;
+      background-color: rgba(255, 255, 255, 0.95);
+      color: #333;
+      font-weight: bold;
+    }
+
+    button {
+      margin-top: 20px;
+      padding: 14px 28px;
+      font-size: 20px;
+      background-color: #00c853;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #009624;
+    }
+
+    #result {
+      margin-top: 30px;
+      font-size: 28px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 2px 2px 5px black;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Welcome to Maruthu's Smart Travel Guide </h1>
+
+  <div class="dropdown-container">
+    <div class="dropdown-box">
+      <label for="fromDistrict">Your City</label>
+      <select id="fromDistrict">
+        <option value="">-- Select Your City --</option>
+      </select>
+    </div>
+    <div class="dropdown-box">
+      <label for="toDistrict">Picnic City</label>
+      <select id="toDistrict">
+        <option value="">-- Select Picnic City --</option>
+      </select>
+    </div>
+  </div>
+
+  <button id="proceedBtn">Proceed</button>
+
+  <p id="result"></p>
+
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+
+    const supabaseUrl = "https://lnyikislvvjphvqfezad.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxueWlraXNsdnZqcGh2cWZlemFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQyMDEwMjAsImV4cCI6MjA2OTc3NzAyMH0.4S2CyfXEaqQ1KqPaKE00Sa-3r-cpmdq3JWtFogBV5V4";
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    async function loadDistricts() {
+      const { data, error } = await supabase
+        .from("spot_data")
+        .select("district, latitude, longitude");
+
+      if (error) {
+        console.error("Error fetching districts:", error);
+        return;
+      }
+
+      const fromSelect = document.getElementById("fromDistrict");
+      const toSelect = document.getElementById("toDistrict");
+
+      data.forEach(d => {
+        const optionData = JSON.stringify({ name: d.district, lat: d.latitude, lon: d.longitude });
+
+        const fromOpt = document.createElement("option");
+        fromOpt.value = optionData;
+        fromOpt.textContent = d.district;
+        fromSelect.appendChild(fromOpt);
+
+        const toOpt = document.createElement("option");
+        toOpt.value = optionData;
+        toOpt.textContent = d.district;
+        toSelect.appendChild(toOpt);
+      });
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) *
+                Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    document.getElementById("proceedBtn").addEventListener("click", () => {
+      const fromValue = document.getElementById("fromDistrict").value;
+      const toValue = document.getElementById("toDistrict").value;
+
+      if (!fromValue || !toValue) {
+        document.getElementById("result").innerText = "Please select both cities.";
+        return;
+      }
+
+      const from = JSON.parse(fromValue);
+      const to = JSON.parse(toValue);
+
+      const distance = haversine(from.lat, from.lon, to.lat, to.lon).toFixed(2);
+      document.getElementById("result").innerText =
+        `The distance between ${from.name} and ${to.name} is ${distance} kms.`;
+    });
+
+    loadDistricts();
+  </script>
+</body>
+</html>
